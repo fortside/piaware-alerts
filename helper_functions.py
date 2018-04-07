@@ -207,42 +207,6 @@ def create_sql_tables():
     conn.close()
 
 
-def aircraft_exists_old(icao, squawk):
-    key = create_aircraft_key(icao, squawk)
-    query = "select * from aircraft where aircraft_key = (?)"
-    # connect to the database
-    conn = sqlite3.connect(constants.db_name)
-    # get the cursor so we can do stuff
-    cur = conn.cursor()
-    cur.execute(query, [key])
-    # run the query to see if this one is entered yet
-    this_aircraft = cur.fetchone()
-    if this_aircraft is None:
-        # there's a possibility that the squawk wasn't initially set and there's an entry for this aircraft with the
-        # squawk set to none. Let's check for that and update the row accordingly if it's there
-        # TODO there is also an edge case where the squawk value gets cleared for an aircraft. That's causing additional entries. Investigate.
-        orig_key = create_aircraft_key(icao, "none")
-        cur.execute(query, [orig_key])
-        this_maybe_aircraft = cur.fetchone()
-        if this_maybe_aircraft is not None:
-            #we have to update the squawk value and aircraft key for this row
-            update_aircraft_query = "update aircraft set aircraft_key = (?), squawk = (?) where aircraft_key = (?)"
-            update_aircraft_values = [key, squawk, orig_key]
-            cur.execute(update_aircraft_query, update_aircraft_values)
-            conn.commit()
-            print(icao + ": set squawk value")
-            exists = True
-        else:
-            # definitely no entry for this one, close it up
-            exists = False
-    else:
-        exists = True
-
-    cur.close()
-    conn.close()
-    return exists
-
-
 def aircraft_exists(icao, squawk):
     # find the most recent entry for this aircraft
     query = "select * from aircraft where icao_code = (?) order by time_entered desc limit 1"
@@ -506,8 +470,7 @@ def commit_flight_info(flight_dict):
 
 def create_aircraft_key(icao, squawk):
     return icao + "$" + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    #return icao + squawk + datetime.datetime.today().strftime('%Y-%m-%d')
-
+    
 
 def get_aircraft_info(aircraft_type):
     # check the database first
