@@ -7,10 +7,33 @@ import datetime
 import requests
 import twython
 import traceback
+import math
 
 def get_distance(my_location, remote_location):
     return geopy.distance.distance(my_location, remote_location).kilometers
-# TODO also calculate what direction the remote location is relative to us
+
+
+# shamelessly taken from https://gist.github.com/jeromer/2005586
+def get_bearing(pointA, pointB):
+    lat1 = math.radians(pointA[0])
+    lat2 = math.radians(pointB[0])
+
+    diffLong = math.radians(pointB[1] - pointA[1])
+
+    x = math.sin(diffLong) * math.cos(lat2)
+    y = math.cos(lat1) * math.sin(lat2) - (math.sin(lat1)
+                                           * math.cos(lat2) * math.cos(diffLong))
+
+    initial_bearing = math.atan2(x, y)
+
+    # Now we have the initial bearing but math.atan2 return values
+    # from -180° to + 180° which is not what we want for a compass bearing
+    # The solution is to normalize the initial bearing as shown below
+    initial_bearing = math.degrees(initial_bearing)
+    compass_bearing = (initial_bearing + 360) % 360
+
+    return compass_bearing
+
 
 def speed_to_kph(speed):
     return speed * constants.knots_to_kph
@@ -57,6 +80,7 @@ def heading_to_direction(heading):
         return "NW"
     else: #heading >= 326.25 and heading < 348.75
         return "NNW"
+
 
 def check_current_weather():
     # grab the most recent entry in the weather cache database
@@ -165,6 +189,8 @@ def create_sql_tables():
                      ", tweet_status integer" \
                      ", time_entered text" \
                      ", time_exited text" \
+                     ", lat real" \
+                     ", lon real" \
                      ")"
     aircraft_details_table = "Create table if not exists aircraft_type_details (" \
                             "aircraft_type text" \
@@ -394,6 +420,8 @@ def get_flight_info(airplane):
             flight_info['tweet_status'] = 0
             flight_info['time_entered'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             flight_info['time_exited'] = ''
+            flight_info['lat'] = airplane['lat']
+            flight_info['lon'] = airplane['lon']
 
         else:
             # there's not much data available for this one. grab in what we can
@@ -422,7 +450,9 @@ def get_flight_info(airplane):
                            "squawk": squawk,
                            "tweet_status": 0,
                            "time_entered": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                           "time_exited": ''
+                           "time_exited": '',
+                           "lat": airplane['lat'],
+                           "lon": airplane['lon']
                            }
 
     return flight_info
@@ -433,8 +463,8 @@ def commit_flight_info(flight_dict):
 
     conn = sqlite3.connect(constants.db_name)
     cur = conn.cursor()
-    aircraft_insert = "insert or ignore into aircraft values (?,?,?,?,?,?,?,?,?,?,?,?,?,?);"
-    # (aircraft_key, aircraft, tail_number, flight_number, desc, fa_url, speed, altitude. heading, icao_code, squawk, tweet_status)
+    aircraft_insert = "insert or ignore into aircraft values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);"
+    # (aircraft_key, aircraft, tail_number, flight_number, desc, fa_url, speed, altitude. heading, icao_code, squawk, tweet_status, lat, lon)
     aircraft_values = [flight_dict['aircraft_key'],
                        flight_dict['aircraft'],
                        flight_dict['tail_number'],
@@ -448,7 +478,9 @@ def commit_flight_info(flight_dict):
                        flight_dict['squawk'],
                        flight_dict['tweet_status'],
                        flight_dict['time_entered'],
-                       flight_dict['time_exited']
+                       flight_dict['time_exited'],
+                       flight_dict['lat'],
+                       flight_dict['lon']
                        ]
 
     cur.execute(aircraft_insert, aircraft_values)
@@ -470,7 +502,7 @@ def commit_flight_info(flight_dict):
 
 def create_aircraft_key(icao, squawk):
     return icao + "$" + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
+
 
 def get_aircraft_info(aircraft_type):
     # check the database first
@@ -529,7 +561,8 @@ def tweet(weather):
                               constants.twitter_token, constants.twitter_token_secret)
 
     for aircraft in aircrafts_to_tweet:
-        message = "Incoming!\n"
+        direction = heading_to_direction(get_bearing(constants.home, (aircraft[14],aircraft[15])))
+        message = "Incoming from the " + direction + "!\n"
         # flight description
         message+= aircraft[4] + "\n"# desc
         # aircraft type
@@ -548,11 +581,9 @@ def tweet(weather):
             if link is not None:
                 message+= "Details: " + link + "\n"
         # additional nice to know details
-        # TODO add in heading and 'location' by direction (NNE, SW, etc)
         message += "Tail # " + aircraft[2] + "\n"
-        message += "Speed: " + str(int(aircraft[6])) + " km/hr\n"
+        message += "Speed: " + str(int(aircraft[6])) + " km/hr heading " + heading_to_direction(aircraft[8]) + "\n"
         message += "Alt: " + str(aircraft[7]) + " ft\n"
-        #message += "Squawk: " + aircraft[10] + "\n"
         message += "Weather: " +  weather['desc'] + "\n"
         message += "Ceiling: " + str(weather['visibility']) + " ft\n"
 
@@ -562,6 +593,7 @@ def tweet(weather):
         result = None
         try:
             result = twitter.update_status(status=message)
+            twitter.send_direct_message(user="fortside", text="tweet length:" + str(message.__len__()))
         except Exception as e:
             print("Error tweeting: " + str(e))
         if result is not None:
