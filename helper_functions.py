@@ -104,7 +104,7 @@ def check_current_weather():
             # make the web request to pull the json data
             req = urllib.request.Request(constants.OWM_URL)
             try:
-                data = json.loads(urllib.request.urlopen(req).read())
+                data = json.loads(urllib.request.urlopen(req).read().decode('utf-8'))
             except Exception as e:
                 print("Error reaching " + constants.OWM_URL)
                 print(str(e))
@@ -567,7 +567,7 @@ def tweet(weather):
         message+= aircraft[4] + "\n"# desc
         # aircraft type
         if aircraft[1] == "Unknown":  # aircraft type (ex. B737 or A320)
-            message += "Aircraft type: unavailable"
+            message += "Aircraft type: unavailable\n"
         else:
             message += "Flight # " + aircraft[3] + "\n"
             #look up the plane details in the other DB table
@@ -585,7 +585,8 @@ def tweet(weather):
         message += "Speed: " + str(int(aircraft[6])) + " km/hr heading " + heading_to_direction(aircraft[8]) + "\n"
         message += "Alt: " + str(aircraft[7]) + " ft\n"
         message += "Weather: " +  weather['desc'] + "\n"
-        message += "Ceiling: " + str(weather['visibility']) + " ft\n"
+        #message += "Ceiling: " + str(weather['visibility']) + " ft\n" # this value doesn't seem accurate
+        # TODO check other weather APIs, or if there's a better measure available from OWM
 
         message += constants.hashtags + "\n"
 

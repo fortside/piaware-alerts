@@ -20,7 +20,7 @@ try:
         # make the web request to pull the json data from our antenna
         req = urllib.request.Request(constants.live_data_url)
         try:
-            data = json.loads(urllib.request.urlopen(req).read())
+            data = json.loads(urllib.request.urlopen(req).read().decode('utf-8'))
         except Exception as e:
             print("Error reaching " + constants.live_data_url)
             print(str(e))
