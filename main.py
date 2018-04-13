@@ -21,10 +21,14 @@ try:
         req = urllib.request.Request(constants.live_data_url)
         try:
             data = json.loads(urllib.request.urlopen(req).read().decode('utf-8'))
+        except urllib.error.HTTPError as e:
+            print("HTTP Error: " + e.reason)
+            data = None
+        except urllib.error.URLError as e:
+            print("URL Error: " + e.reason.strerror + "\nCheck network connections")
+            data = None
         except Exception as e:
-            print("Error reaching " + constants.live_data_url)
-            print(str(e))
-            print(traceback.format_exc())
+            print("General Exception. Error reaching " + constants.live_data_url)
             data = None
 
         # if we have valid aircraft data, run through each aircraft to see the details

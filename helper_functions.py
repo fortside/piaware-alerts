@@ -2,6 +2,7 @@ import constants
 import geopy.distance
 import json
 import urllib.request
+import urllib.error
 import sqlite3
 import datetime
 import requests
@@ -105,6 +106,12 @@ def check_current_weather():
             req = urllib.request.Request(constants.OWM_URL)
             try:
                 data = json.loads(urllib.request.urlopen(req).read().decode('utf-8'))
+            except urllib.error.HTTPError as e:
+                print("HTTP Error: " + e.reason)
+                data = None
+            except urllib.error.URLError as e:
+                print("OWM URL Error: " + e.reason.strerror + "\nCheck network connections")
+                data = None
             except Exception as e:
                 print("Error reaching " + constants.OWM_URL)
                 print(str(e))
@@ -278,6 +285,12 @@ def check_if_known(airplane):
     url = "https://flightaware.com/live/modes/" + airplane['hex'] + "/redirect"
     try:
         redirect_url = urllib.request.urlopen(urllib.request.Request(url)).geturl()
+    except urllib.error.HTTPError as e:
+        print("HTTP Error: " + e.reason)
+        return None
+    except urllib.error.URLError as e:
+        print("FlightAware URL Error: " + e.reason.strerror + "\nCheck network connections")
+        return None
     except Exception as e:
         print("Error accessing flightaware.com. Unable to check aircraft")
         print(str(e))
@@ -314,9 +327,15 @@ def get_flight_info(airplane):
 
         # from the flight number we can get much more detail from the FA API
         payload = {'ident': deets['fl_num'], 'howMany': constants.fxml_flightinfo_limit}
-        response = requests.get(constants.fxmlUrl + "FlightInfoStatus", params=payload,
+        api_error = False
+        try:
+            response = requests.get(constants.fxmlUrl + "FlightInfoStatus", params=payload,
                                 auth=(constants.fa_username, constants.fxml_key))
-        if response.status_code == 200:
+        except requests.exceptions.RequestException as e:
+            print("Error accessing FXML API")
+            api_error = True
+
+        if response.status_code == 200 and api_error == False:
             flight_data = response.json()
             # the flight data will contain up to 15 cataloged flights for this flight number. We only want
             #  the current in-progress flight
@@ -368,6 +387,7 @@ def get_flight_info(airplane):
             else:
                 print(airplane['hex'] + ": this aircraft has requested to not be tracked")
                 payload = {'ident': deets['fl_num']}
+                # no error checking here. Bold assumption that if the API call above worked, this one will too
                 response = requests.get(constants.fxmlUrl + "TailOwner", params=payload,
                                         auth=(constants.fa_username, constants.fxml_key))
                 aircraft_data = response.json()
@@ -518,9 +538,13 @@ def get_aircraft_info(aircraft_type):
     if this_aircraft is None:
         print("No details for " + aircraft_type + ". Querying FlightXML")
         payload = {'type': aircraft_type}
-        response = requests.get(constants.fxmlUrl + "AircraftType", params=payload,
+        api_error = False
+        try:
+            response = requests.get(constants.fxmlUrl + "AircraftType", params=payload,
                                 auth=(constants.fa_username, constants.fxml_key))
-        if response.status_code == 200:
+        except requests.exceptions.RequestException as e:
+            api_error = True
+        if response.status_code == 200 and api_error == False:
             data = response.json()
             # parse this out and write to the database
             aircraft_type_insert = "insert or ignore into aircraft_type_details values (?,?,?,?,?,?);"
@@ -594,7 +618,7 @@ def tweet(weather):
         result = None
         try:
             result = twitter.update_status(status=message)
-            twitter.send_direct_message(user="fortside", text="tweet length:" + str(message.__len__()))
+            twitter.send_direct_message(user="fortside", text=message+"\ntweet length:" + str(message.__len__()))
         except Exception as e:
             print("Error tweeting: " + str(e))
         if result is not None:
@@ -619,9 +643,13 @@ def get_airline_info(airline_code):
     if this_airline is None:
         print("No details for " + airline_code + ". Querying FlightXML")
         payload = {'airline_code': airline_code}
-        response = requests.get(constants.fxmlUrl + "AirlineInfo", params=payload,
+        api_error = False
+        try:
+            response = requests.get(constants.fxmlUrl + "AirlineInfo", params=payload,
                                 auth=(constants.fa_username, constants.fxml_key))
-        if response.status_code == 200:
+        except requests.exceptions.RequestExeption as e:
+            api_error = True
+        if response.status_code == 200 and api_error == False:
             data = response.json()
             # parse this out and write to the database
             airline_insert = "insert or ignore into airline_details values (?,?,?,?,?,?,?,?);"
@@ -663,12 +691,20 @@ def get_airline_info(airline_code):
 def shorten_link(url):
     #use bitly API to shorten the FA urls
     payload = {'access_token': constants.bitly_token, 'longUrl': url}
-    response = requests.get(constants.bitly_URL, params=payload, verify=True)
-    data = response.json()
+    api_error = False
+    try:
+        response = requests.get(constants.bitly_URL, params=payload, verify=True)
+    except requests.exceptions.RequestException as e:
+        print("Error accessing bitly API")
+        api_error = True
+    if not api_error and response.status_code == 200:
+        data = response.json()
 
-    if response.status_code == 200:
-        short_link = data['data']['url']
-        return short_link
+        if response.status_code == 200:
+            short_link = data['data']['url']
+            return short_link
+        else:
+            print(response.text)
+            return None
     else:
-        print(response.text)
         return None
