@@ -2,6 +2,13 @@
 # name of database to store historical information
 db_name = "piplanes.db"
 
+# the aircraft DB file should only be used if the user is licensed for FR24, since that's the original data source
+# set this value to True if you're feeding FR24 as well. Leave as False otherwise
+fr24_licensed = True
+
+# name of csv file containing mappings of ICAO hex IDs to unique aircraft idents
+aircraft_db_name = "aircraft_db.csv"
+
 # pi-aware local JSON feed with cleansed input
 live_data_url = "http://192.168.1.207:8080/dump1090-fa/data/aircraft.json"
 

@@ -5,6 +5,8 @@ import constants
 import time
 import datetime
 import traceback
+import csv
+import pandas
 
 # TODO create a cron job to check each minute that this script is still running
 
@@ -12,6 +14,16 @@ try:
 
     # start by ensuring the SQL backend is set up
     helper_functions.create_sql_tables()
+
+    if constants.fr24_licensed:
+        # import the static 'airplane db' file into a pandas dataframe
+        try:
+            aircraft_db = pandas.read_csv(constants.aircraft_db_name)
+        except Exception as e:
+            print("Error importing aircraft DB")
+            aircraft_db = None
+    else:
+        aircraft_db = None
 
     while True:
         # check the weather
@@ -52,7 +64,7 @@ try:
                             print(airplane['hex'] + ": already in database")
                         else:
                             # grab additional details from flightaware based on the icao code
-                            flight_info = helper_functions.get_flight_info(airplane)
+                            flight_info = helper_functions.get_flight_info(airplane, aircraft_db)
 
                             # write this flight to the database
                             if flight_info != "ignore me":

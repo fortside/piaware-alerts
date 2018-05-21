@@ -10,6 +10,7 @@ import twython
 import traceback
 import math
 
+
 def get_distance(my_location, remote_location):
     return geopy.distance.distance(my_location, remote_location).kilometers
 
@@ -51,7 +52,7 @@ def datetime_to_dt(formatted_datetime):
 def heading_to_direction(heading):
     if heading > 348.75 or heading < 11.25:
         return "N"
-    elif heading >=11.25 and heading < 33.75:
+    elif heading >= 11.25 and heading < 33.75:
         return "NNE"
     elif heading >= 33.75 and heading < 56.25:
         return "NE"
@@ -79,7 +80,7 @@ def heading_to_direction(heading):
         return "WNW"
     elif heading >= 303.75 and heading < 326.25:
         return "NW"
-    else: #heading >= 326.25 and heading < 348.75
+    else:  # heading >= 326.25 and heading < 348.75
         return "NNW"
 
 
@@ -91,14 +92,17 @@ def check_current_weather():
     cur.execute(weather_query)
     newest_weather = cur.fetchone()
 
+    # if newest_weather is not None:
+    #    print("Newest weather timestamp: " + dt_to_datetime(newest_weather[0]))
+
     # check to see if this weather info is stale, or even exists at all
     if (newest_weather is None) or \
-            newest_weather[0] + constants.weather_interval < \
-            datetime_to_dt(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')):
+                            newest_weather[0] + constants.weather_interval < \
+                    datetime_to_dt(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')):
         print("Weather info is considered stale")
         # also check when we last queried the API. Only a finite number allowed daily so throttling is a must
         if (newest_weather is not None) and newest_weather[8] + constants.weather_api_check_frequency < \
-            datetime_to_dt(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')):
+                datetime_to_dt(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')):
             # it's been more than <weather_api_check_frequency> seconds, query the API again
             print("querying info from OWM API and attempting to update database")
 
@@ -135,7 +139,8 @@ def check_current_weather():
                                   datetime_to_dt(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
                                   ]
 
-                print("Updating database entry with timestamp of " + str(datetime_to_dt(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))))
+                print("Updating database entry with timestamp of " + str(
+                    datetime_to_dt(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))))
                 cur.execute(weather_insert, weather_values)
                 conn.commit()
 
@@ -151,16 +156,16 @@ def check_current_weather():
         else:
             # don't bother checking the API, just return the current info
             print("OWM API was recently queried. Waiting before checking again. Returning cached weather values")
-            weather = {"visibility": int(newest_weather[7]*constants.meters_to_feet),
+            weather = {"visibility": int(newest_weather[7] * constants.meters_to_feet),
                        "desc": newest_weather[3],
                        "timestamp": dt_to_datetime(newest_weather[0])
                        }
     else:
-        weather = {"visibility": int(newest_weather[7]*constants.meters_to_feet),
+        weather = {"visibility": int(newest_weather[7] * constants.meters_to_feet),
                    "desc": newest_weather[3],
                    "timestamp": dt_to_datetime(newest_weather[0])
                    }
-        print("Got weather info from web API")
+        print("Got weather info from cache")
 
     cur.close()
     conn.close()
@@ -170,16 +175,16 @@ def check_current_weather():
 
 def create_sql_tables():
     weather_table = "Create table if not exists weather (" \
-            "datetime integer UNIQUE" \
-            ", lat real" \
-            ", long real" \
-            ", desc text" \
-            ", temp real" \
-            ", pressure integer" \
-            ", humidity integer" \
-            ", visibility integer" \
-            ", lastchecked integer" \
-            ")"
+                    "datetime integer UNIQUE" \
+                    ", lat real" \
+                    ", long real" \
+                    ", desc text" \
+                    ", temp real" \
+                    ", pressure integer" \
+                    ", humidity integer" \
+                    ", visibility integer" \
+                    ", lastchecked integer" \
+                    ")"
 
     aircraft_table = "Create table if not exists aircraft (" \
                      "aircraft_key text" \
@@ -200,13 +205,13 @@ def create_sql_tables():
                      ", lon real" \
                      ")"
     aircraft_details_table = "Create table if not exists aircraft_type_details (" \
-                            "aircraft_type text" \
-                            ", description text" \
-                            ", engine_count integer" \
-                            ", engine_type text" \
-                            ", manufacturer text" \
-                            ", type text" \
-                            ")"
+                             "aircraft_type text" \
+                             ", description text" \
+                             ", engine_count integer" \
+                             ", engine_type text" \
+                             ", manufacturer text" \
+                             ", type text" \
+                             ")"
 
     airline_details_table = "Create table if not exists airline_details (" \
                             "airline_code text" \
@@ -258,9 +263,9 @@ def aircraft_exists(icao, squawk):
         # we've seen this before, if it was in the last few minutes we should ignore it
         recent_timestamp = this_aircraft[0].split("$")[1]
         recent_squawk = this_aircraft[10]
-        #if the newest entry in the database is older than X seconds ago, we know it's a new flight
-        if(datetime_to_dt(recent_timestamp) + constants.squawk_delay < datetime_to_dt(
-            datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))):
+        # if the newest entry in the database is older than X seconds ago, we know it's a new flight
+        if (datetime_to_dt(recent_timestamp) + constants.squawk_delay < datetime_to_dt(
+                datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))):
             return False
         # if this squawk is the same as the previous one, this is already recorded
         elif recent_squawk == squawk:
@@ -270,7 +275,7 @@ def aircraft_exists(icao, squawk):
             return True
         # if this aircraft had no squawk and now does, let's update that but not record it as a new entry
         elif recent_squawk == 'none' and squawk != 'none':
-            #send the update query to SQL
+            # send the update query to SQL
             update_aircraft_query = "update aircraft set squawk = (?) where aircraft_key = (?)"
             update_aircraft_values = [squawk, this_aircraft[0]]
             cur.execute(update_aircraft_query, update_aircraft_values)
@@ -281,7 +286,7 @@ def aircraft_exists(icao, squawk):
             return False
 
 
-def check_if_known(airplane):
+def check_if_known(airplane, aircraft_db):
     url = "https://flightaware.com/live/modes/" + airplane['hex'] + "/redirect"
     try:
         redirect_url = urllib.request.urlopen(urllib.request.Request(url)).geturl()
@@ -298,23 +303,41 @@ def check_if_known(airplane):
         return None
 
     known_info = {'fl_num': 'x', 'redirect_url': 'y'}
+    # if the redirect gave us the flight details enter it
     if url != redirect_url:
         known_info['fl_num'] = redirect_url.split('/')[5]
         known_info['redirect_url'] = redirect_url
+    # or possibly the flight number info is being sent by the aircraft itself
     elif 'flight' in airplane:
-        known_info['fl_num'] = airplane['flight'].replace(' ','')
+        known_info['fl_num'] = airplane['flight'].replace(' ', '')
         known_info['redirect_url'] = "https://flightaware.com/live/flight/" + known_info['fl_num']
+    # next we can try to look up using the local FR24 aircraft DB if it's available
+    elif aircraft_db is not None:
+        # here we will check the csv file database file
+        try:
+            if '~' in airplane['hex']:
+                airplane_hex = airplane['hex'][1:]
+            else:
+                airplane_hex = airplane['hex']
+            # fancy way of finding the row in the DF with the hex code, and getting the ident string
+            ident = aircraft_db.loc[aircraft_db['icao'] == airplane_hex]['regid'].values[0].replace(' ', '').replace('-', '').upper()
+            # tail number != flight number but the URLs load the same page info, and return the same API data
+            known_info['fl_num'] = ident
+            known_info['redirect_url'] = "https://flightaware.com/live/flight/" + ident
+            print(airplane_hex + ": Flight info retrieved from local FR24 db (Tail #" + ident + ")")
+        except Exception as e:
+            print("ICAO hex code " + airplane['hex'] + " missing from local FR24 db. No details available.")
+            known_info = None
     else:
         known_info = None
 
     return known_info
 
 
-def get_flight_info(airplane):
-
+def get_flight_info(airplane, aircraft_db):
     aircraft_type = None
 
-    deets = check_if_known(airplane)
+    deets = check_if_known(airplane, aircraft_db)
 
     # If Flight Aware doesn't have detail on a specific flight we can't get any good details
     if deets is None:
@@ -330,7 +353,7 @@ def get_flight_info(airplane):
         api_error = False
         try:
             response = requests.get(constants.fxmlUrl + "FlightInfoStatus", params=payload,
-                                auth=(constants.fa_username, constants.fxml_key))
+                                    auth=(constants.fa_username, constants.fxml_key))
         except requests.exceptions.RequestException as e:
             print("Error accessing FXML API")
             api_error = True
@@ -541,7 +564,7 @@ def get_aircraft_info(aircraft_type):
         api_error = False
         try:
             response = requests.get(constants.fxmlUrl + "AircraftType", params=payload,
-                                auth=(constants.fa_username, constants.fxml_key))
+                                    auth=(constants.fa_username, constants.fxml_key))
         except requests.exceptions.RequestException as e:
             api_error = True
         if response.status_code == 200 and api_error == False:
@@ -571,8 +594,6 @@ def get_aircraft_info(aircraft_type):
 
 
 def tweet(weather):
-    # print("Now we're tweeting")
-
     query = "select * from aircraft where tweet_status = 0 and aircraft is not null and aircraft != 'none' order by time_entered asc"
     conn = sqlite3.connect(constants.db_name)
     # get the cursor so we can do stuff
@@ -585,16 +606,16 @@ def tweet(weather):
                               constants.twitter_token, constants.twitter_token_secret)
 
     for aircraft in aircrafts_to_tweet:
-        direction = heading_to_direction(get_bearing(constants.home, (aircraft[14],aircraft[15])))
+        direction = heading_to_direction(get_bearing(constants.home, (aircraft[14], aircraft[15])))
         message = "Incoming from the " + direction + "!\n"
         # flight description
-        message+= aircraft[4] + "\n"# desc
+        message += aircraft[4] + "\n"  # desc
         # aircraft type
         if aircraft[1] == "Unknown":  # aircraft type (ex. B737 or A320)
             message += "Aircraft type: unavailable\n"
         else:
             message += "Flight # " + aircraft[3] + "\n"
-            #look up the plane details in the other DB table
+            # look up the plane details in the other DB table
             query = "select * from aircraft_type_details where aircraft_type = (?)"
             cur.execute(query, [aircraft[1]])
             details = cur.fetchone()
@@ -603,22 +624,24 @@ def tweet(weather):
         if aircraft[5].__contains__("https"):
             link = shorten_link(aircraft[5])
             if link is not None:
-                message+= "Details: " + link + "\n"
+                message += "Details: " + link + "\n"
         # additional nice to know details
         message += "Tail # " + aircraft[2] + "\n"
         message += "Speed: " + str(int(aircraft[6])) + " km/hr heading " + heading_to_direction(aircraft[8]) + "\n"
         message += "Alt: " + str(aircraft[7]) + " ft\n"
-        message += "Weather: " +  weather['desc'] + "\n"
-        #message += "Ceiling: " + str(weather['visibility']) + " ft\n" # this value doesn't seem accurate
+        message += "Weather: " + weather['desc'] + "\n"
+        # message += "Ceiling: " + str(weather['visibility']) + " ft\n" # this value doesn't seem accurate
         # TODO check other weather APIs, or if there's a better measure available from OWM
 
         message += constants.hashtags + "\n"
 
         print("Tweet character count: " + str(message.__len__()))
+        # super ugly temp fix. tweet should be split into 2 messages.
+        if message.__len__() > 279:
+            message = message[:278]
         result = None
         try:
             result = twitter.update_status(status=message)
-            twitter.send_direct_message(user="fortside", text=message+"\ntweet length:" + str(message.__len__()))
         except Exception as e:
             print("Error tweeting: " + str(e))
         if result is not None:
@@ -646,7 +669,7 @@ def get_airline_info(airline_code):
         api_error = False
         try:
             response = requests.get(constants.fxmlUrl + "AirlineInfo", params=payload,
-                                auth=(constants.fa_username, constants.fxml_key))
+                                    auth=(constants.fa_username, constants.fxml_key))
         except requests.exceptions.RequestExeption as e:
             api_error = True
         if response.status_code == 200 and api_error == False:
@@ -655,14 +678,14 @@ def get_airline_info(airline_code):
             airline_insert = "insert or ignore into airline_details values (?,?,?,?,?,?,?,?);"
             # aircraft_type text, description text, engine_count integer, engine_type text, manufacturer text
             airline_values = [airline_code,
-                                    data['AirlineInfoResult']['callsign'],
-                                    data['AirlineInfoResult']['country'],
-                                    data['AirlineInfoResult']['location'],
-                                    data['AirlineInfoResult']['name'],
-                                    data['AirlineInfoResult']['phone'],
-                                    data['AirlineInfoResult']['shortname'],
-                                    data['AirlineInfoResult']['url']
-                                    ]
+                              data['AirlineInfoResult']['callsign'],
+                              data['AirlineInfoResult']['country'],
+                              data['AirlineInfoResult']['location'],
+                              data['AirlineInfoResult']['name'],
+                              data['AirlineInfoResult']['phone'],
+                              data['AirlineInfoResult']['shortname'],
+                              data['AirlineInfoResult']['url']
+                              ]
             cur.execute(airline_insert, airline_values)
             conn.commit()
             print(airline_code + ": written to airline_details table")
@@ -689,7 +712,7 @@ def get_airline_info(airline_code):
 
 
 def shorten_link(url):
-    #use bitly API to shorten the FA urls
+    # use bitly API to shorten the FA urls
     payload = {'access_token': constants.bitly_token, 'longUrl': url}
     api_error = False
     try:
