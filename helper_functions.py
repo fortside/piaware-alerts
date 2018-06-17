@@ -224,6 +224,14 @@ def create_sql_tables():
                             ", url text" \
                             ")"
 
+    tail_owner_table = "Create table if not exists tail_owner (" \
+                            "ident text" \
+                            ", location text" \
+                            ", location2 text" \
+                            ", owner text" \
+                            ", website text" \
+                            ")"
+
     # connect to the database
     conn = sqlite3.connect(constants.db_name)
 
@@ -238,6 +246,8 @@ def create_sql_tables():
     cur.execute(aircraft_details_table)
     conn.commit()
     cur.execute(airline_details_table)
+    conn.commit()
+    cur.execute(tail_owner_table)
     conn.commit()
 
     # close the connections
@@ -258,6 +268,8 @@ def aircraft_exists(icao, squawk):
     this_aircraft = cur.fetchone()
     if this_aircraft is None:
         # this aircraft has never been in our airspace
+        cur.close()
+        conn.close()
         return False
     else:
         # we've seen this before, if it was in the last few minutes we should ignore it
@@ -266,12 +278,18 @@ def aircraft_exists(icao, squawk):
         # if the newest entry in the database is older than X seconds ago, we know it's a new flight
         if (datetime_to_dt(recent_timestamp) + constants.squawk_delay < datetime_to_dt(
                 datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))):
+            cur.close()
+            conn.close()
             return False
         # if this squawk is the same as the previous one, this is already recorded
         elif recent_squawk == squawk:
+            cur.close()
+            conn.close()
             return True
         # if this is just a case of the aircraft turning off it's squawk code we should ignore it. Not a new entry
         elif recent_squawk != 'none' and squawk == 'none':
+            cur.close()
+            conn.close()
             return True
         # if this aircraft had no squawk and now does, let's update that but not record it as a new entry
         elif recent_squawk == 'none' and squawk != 'none':
@@ -280,10 +298,15 @@ def aircraft_exists(icao, squawk):
             update_aircraft_values = [squawk, this_aircraft[0]]
             cur.execute(update_aircraft_query, update_aircraft_values)
             conn.commit()
+            cur.close()
+            conn.close()
             print(icao + ": set squawk value to " + squawk)
             return True
+        # Last possible case is if the squawk code changed to a different valid value. Already cataloged.
         else:
-            return False
+            cur.close()
+            conn.close()
+            return True
 
 
 def check_if_known(airplane, aircraft_db):
@@ -409,15 +432,48 @@ def get_flight_info(airplane, aircraft_db):
                     tail_number = deets['fl_num']
             else:
                 print(airplane['hex'] + ": this aircraft has requested to not be tracked")
-                payload = {'ident': deets['fl_num']}
-                # no error checking here. Bold assumption that if the API call above worked, this one will too
-                response = requests.get(constants.fxmlUrl + "TailOwner", params=payload,
-                                        auth=(constants.fa_username, constants.fxml_key))
-                aircraft_data = response.json()
+                #check if we have owner information for this tail number yet
+                query = "select * from tail_owner where ident = (?) limit 1"
+                # connect to the database
+                conn = sqlite3.connect(constants.db_name)
+                # get the cursor so we can do stuff
+                cur = conn.cursor()
+                cur.execute(query, [deets['fl_num']])
+
+                # run the query to see if this one is entered yet
+                this_ident = cur.fetchone()
+                if this_ident is not None:
+                    # set the flight info based on what the table says
+                    flight_desc = "Private flight: " + deets['fl_num'] + " - is unavailable for public tracking\n" + \
+                                  "Owner: " + this_ident[3] + " (" + this_ident[1] + ")"
+                    cur.close()
+                    conn.close()
+                    print(deets['fl_num'] + " found in Tail Owners table. No need to query FXML API")
+                else:
+                    # this aircraft has never been in our airspace, check the API
+                    payload = {'ident': deets['fl_num']}
+                    # no error checking here. Bold assumption that if the API call above worked, this one will too
+                    response = requests.get(constants.fxmlUrl + "TailOwner", params=payload,
+                                            auth=(constants.fa_username, constants.fxml_key))
+                    aircraft_data = response.json()
+                    flight_desc = "Private flight: " + deets['fl_num'] + " - is unavailable for public tracking\n" + \
+                                  "Owner: " + aircraft_data['TailOwnerResult']['owner'] + " (" + \
+                                  aircraft_data['TailOwnerResult']['location'] + ")"
+                    # we must also update the tail_owner table so next time the API doesn't need to be queried
+                    tail_insert = "insert or ignore into tail_owner values (?,?,?,?,?);"
+                    tail_values = [deets['fl_num'],
+                                   aircraft_data['TailOwnerResult']['location'],
+                                   aircraft_data['TailOwnerResult']['location2'],
+                                   aircraft_data['TailOwnerResult']['owner'],
+                                   aircraft_data['TailOwnerResult']['website']
+                                   ]
+                    cur.execute(tail_insert, tail_values)
+                    conn.commit()
+                    cur.close()
+                    conn.close()
+                    print(deets['fl_num'] + " added to Tail Owners table")
+
                 aircraft_type = "Unknown"
-                flight_desc = "Private flight: " + deets['fl_num'] + " - is unavailable for public tracking\n" + \
-                              "Owner: " + aircraft_data['TailOwnerResult']['owner'] + " (" + \
-                              aircraft_data['TailOwnerResult']['location'] + ")"
                 fa_url = "private flight"
                 tail_number = deets['fl_num']
 
