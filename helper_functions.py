@@ -464,7 +464,7 @@ def get_flight_info(airplane, aircraft_db):
                     tail_values = [deets['fl_num'],
                                    aircraft_data['TailOwnerResult']['location'],
                                    aircraft_data['TailOwnerResult']['location2'],
-                                   aircraft_data['TailOwnerResult']['owner'],
+                                   aircraft_data['TailOwnerResult']['owner'].replace('&quot;', '"'),
                                    aircraft_data['TailOwnerResult']['website']
                                    ]
                     cur.execute(tail_insert, tail_values)
