@@ -623,7 +623,7 @@ def get_aircraft_info(aircraft_type):
                                     auth=(constants.fa_username, constants.fxml_key))
         except requests.exceptions.RequestException as e:
             api_error = True
-        if response.status_code == 200 and api_error == False:
+        if response.status_code == 200 and api_error == False and 'AircraftTypeResult' in response.json():
             data = response.json()
             # parse this out and write to the database
             aircraft_type_insert = "insert or ignore into aircraft_type_details values (?,?,?,?,?,?);"
@@ -728,7 +728,7 @@ def get_airline_info(airline_code):
                                     auth=(constants.fa_username, constants.fxml_key))
         except requests.exceptions.RequestExeption as e:
             api_error = True
-        if response.status_code == 200 and api_error == False:
+        if response.status_code == 200 and api_error == False and 'AirlineInfoResult' in response.json():
             data = response.json()
             # parse this out and write to the database
             airline_insert = "insert or ignore into airline_details values (?,?,?,?,?,?,?,?);"
