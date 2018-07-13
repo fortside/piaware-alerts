@@ -779,7 +779,7 @@ def shorten_link(url):
     if not api_error and response.status_code == 200:
         data = response.json()
 
-        if response.status_code == 200:
+        if response.status_code == 200 and 'data' in data and 'url' in data['data']:
             short_link = data['data']['url']
             return short_link
         else:
