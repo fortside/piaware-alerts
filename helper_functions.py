@@ -496,8 +496,8 @@ def get_flight_info(airplane, aircraft_db):
         else:
             squawk = "none"
 
-        if 'speed' in airplane:
-            speed = round(speed_to_kph(airplane['speed']), 2)
+        if 'gs' in airplane:
+            speed = round(speed_to_kph(airplane['gs']), 2)
         else:
             speed = 0
         if 'track' in airplane:
@@ -521,12 +521,12 @@ def get_flight_info(airplane, aircraft_db):
 
         else:
             # there's not much data available for this one. grab in what we can
-            if 'speed' in airplane:
-                speed = round(speed_to_kph(airplane['speed']), 2)
+            if 'gs' in airplane:
+                speed = round(speed_to_kph(airplane['gs']), 2)
             else:
                 speed = 0
-            if 'altitude' in airplane:
-                alt = airplane['altitude']
+            if 'alt_baro' in airplane:
+                alt = airplane['alt_baro']
             else:
                 alt = 0
             if 'heading' in airplane:
