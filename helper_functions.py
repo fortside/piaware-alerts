@@ -92,9 +92,6 @@ def check_current_weather():
     cur.execute(weather_query)
     newest_weather = cur.fetchone()
 
-    # if newest_weather is not None:
-    #    print("Newest weather timestamp: " + dt_to_datetime(newest_weather[0]))
-
     # check to see if this weather info is stale, or even exists at all
     if (newest_weather is None) or \
                             newest_weather[0] + constants.weather_interval < \
@@ -512,7 +509,7 @@ def get_flight_info(airplane, aircraft_db):
             # fill the dict with all other relevant values, direct from the aircraft itself
             flight_info['aircraft_key'] = create_aircraft_key(airplane['hex'], squawk)
             flight_info['speed'] = speed
-            flight_info['altitude'] = airplane['altitude']
+            flight_info['altitude'] = airplane['alt_baro']
             flight_info['heading'] = track
             flight_info['icao_code'] = airplane['hex']
             flight_info['squawk'] = squawk
