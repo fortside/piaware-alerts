@@ -454,7 +454,7 @@ def get_flight_info(airplane, aircraft_db):
                                             auth=(constants.fa_username, constants.fxml_key))
                     aircraft_data = response.json()
                     flight_desc = "Private flight: " + deets['fl_num'] + " - is unavailable for public tracking\n" + \
-                                  "Owner: " + aircraft_data['TailOwnerResult']['owner'] + " (" + \
+                                  "Owner: " + aircraft_data['TailOwnerResult']['owner'].replace('&quot;', '"') + " (" + \
                                   aircraft_data['TailOwnerResult']['location'] + ")"
                     # we must also update the tail_owner table so next time the API doesn't need to be queried
                     tail_insert = "insert or ignore into tail_owner values (?,?,?,?,?);"
@@ -672,7 +672,10 @@ def tweet(weather):
             query = "select * from aircraft_type_details where aircraft_type = (?)"
             cur.execute(query, [aircraft[1]])
             details = cur.fetchone()
-            message += "Aircraft: " + details[4] + " " + details[5] + "\n"
+            if details is None:
+                message += "Aircraft: Unknown \n"
+            else:
+                message += "Aircraft: " + details[4] + " " + details[5] + "\n"
         # FA url
         if aircraft[5].__contains__("https"):
             link = shorten_link(aircraft[5])
