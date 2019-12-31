@@ -4,7 +4,7 @@ db_name = "piplanes.db"
 
 # the aircraft DB file should only be used if the user is licensed for FR24, since that's the original data source
 # set this value to True if you're feeding FR24 as well. Leave as False otherwise
-fr24_licensed = True
+fr24_licensed = False
 
 # name of csv file containing mappings of ICAO hex IDs to unique aircraft idents
 aircraft_db_name = "aircraft_db.csv"
@@ -52,3 +52,10 @@ twitter_token_secret = "access token secret"
 # bitly details
 bitly_token = "bitly token"
 bitly_URL = "https://api-ssl.bitly.com/v3/shorten"
+
+#SMTP info
+smtp_server = "smtp.server.com"
+smtp_port = 25
+send_to = "you@providerX.com"
+send_from = "piaware-donotreply@providerY.com"
+subject = "PiAware Alerts Issue"

@@ -9,6 +9,9 @@ import requests
 import twython
 import traceback
 import math
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 
 def get_distance(my_location, remote_location):
@@ -700,13 +703,13 @@ def tweet(weather):
             result = twitter.update_status(status=message)
         except Exception as e:
             print("Error tweeting: " + str(e))
+            email_problem(str(e))
         if result is not None:
             # now lets set the tweet_status for this aircraft to 1 so it won't be sent out again
             update_query = "update aircraft set tweet_status = 1 where aircraft_key = (?)"
             cur.execute(update_query, [aircraft[0]])
             conn.commit()
             print(aircraft[9] + ": tweet sent. Status updated in database")
-
 
 def get_airline_info(airline_code):
     # check the database first
@@ -787,3 +790,29 @@ def shorten_link(url):
             return None
     else:
         return None
+
+def email_problem(exception_reason):
+    
+    #build the message object
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = constants.subject
+    msg['From'] = constants.send_from
+    msg['To'] = constants.send_to
+
+    text = "No plain text option available. Use an HTML email client."
+    html = str(exception_reason)
+
+    # Record the MIME types of both parts - text/plain and text/html.
+    part1 = MIMEText(text, 'plain')
+    part2 = MIMEText(html, 'html')
+
+    #Attach parts into message container. According to RFC 2046, the last part of a multipart message, in this case
+    # the HTML message, is best and preferred.
+    msg.attach(part1)
+    msg.attach(part2)
+    
+    #now connect and send the email out
+    server = smtplib.SMTP(constants.smtp_server, constants.smtp_port)
+    server.ehlo()
+    server.sendmail(constants.send_from, constants.send_to, msg.as_string())
+    server.quit()
