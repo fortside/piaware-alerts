@@ -12,6 +12,7 @@ import math
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from bitlyshortener import Shortener
 
 
 def get_distance(my_location, remote_location):
@@ -423,7 +424,7 @@ def get_flight_info(airplane, aircraft_db):
                             tail_number = flight['tailnumber']
                         else:
                             tail_number = flight_num
-                        break;
+                        break
                 # possible that no flights show as active. FXML would not be returning accurate data if so.
                 if aircraft_type is None:
                     print(airplane['hex'] + ": no active flights found")
@@ -512,7 +513,10 @@ def get_flight_info(airplane, aircraft_db):
             # fill the dict with all other relevant values, direct from the aircraft itself
             flight_info['aircraft_key'] = create_aircraft_key(airplane['hex'], squawk)
             flight_info['speed'] = speed
-            flight_info['altitude'] = airplane['alt_baro']
+            if 'alt_baro' in airplane:
+                flight_info['altitude'] = airplane['alt_baro']
+            else:
+                flight_info['altitude'] = 0
             flight_info['heading'] = track
             flight_info['icao_code'] = airplane['hex']
             flight_info['squawk'] = squawk
@@ -729,7 +733,7 @@ def get_airline_info(airline_code):
         try:
             response = requests.get(constants.fxmlUrl + "AirlineInfo", params=payload,
                                     auth=(constants.fa_username, constants.fxml_key))
-        except requests.exceptions.RequestExeption as e:
+        except requests.exceptions.RequestException as e:
             api_error = True
         if response.status_code == 200 and api_error == False and 'AirlineInfoResult' in response.json():
             data = response.json()
@@ -771,23 +775,10 @@ def get_airline_info(airline_code):
 
 
 def shorten_link(url):
-    # use bitly API to shorten the FA urls
-    payload = {'access_token': constants.bitly_token, 'longUrl': url}
-    api_error = False
-    try:
-        response = requests.get(constants.bitly_URL, params=payload, verify=True)
-    except requests.exceptions.RequestException as e:
-        print("Error accessing bitly API")
-        api_error = True
-    if not api_error and response.status_code == 200:
-        data = response.json()
-
-        if response.status_code == 200 and 'data' in data and 'url' in data['data']:
-            short_link = data['data']['url']
-            return short_link
-        else:
-            print(response.text)
-            return None
+    shortener = Shortener(tokens=[constants.bitly_token])
+    short_link = shortener.shorten_urls([url])
+    if short_link is not None:
+        return short_link[0]
     else:
         return None
 

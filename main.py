@@ -90,3 +90,4 @@ except Exception as e:
     print(str(e))
     print(traceback.format_exc())
     print("Something broke")
+    helper_functions.email_problem("Program Crash\nException:\n" + str(e) + "\n\nStack trace:\n" + traceback.format_exc())

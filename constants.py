@@ -51,7 +51,6 @@ twitter_token_secret = "access token secret"
 
 # bitly details
 bitly_token = "bitly token"
-bitly_URL = "https://api-ssl.bitly.com/v3/shorten"
 
 #SMTP info
 smtp_server = "smtp.server.com"
