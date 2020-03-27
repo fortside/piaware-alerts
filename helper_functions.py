@@ -700,8 +700,8 @@ def tweet(weather):
 
         print("Tweet character count: " + str(message.__len__()))
         # super ugly temp fix. tweet should be split into 2 messages.
-        if message.__len__() > 279:
-            message = message[:278]
+        if message.__len__() > 278:
+            message = message[:277]
         result = None
         try:
             result = twitter.update_status(status=message)
